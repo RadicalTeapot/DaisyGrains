@@ -10,8 +10,6 @@ const int32_t Grain::INTERPOLATION_TAIL = 8;
 float Grain::Process(const float in)
 {
     buffer_[write_index_] = in;
-    if (write_index_ < INTERPOLATION_TAIL)
-        buffer_[write_index_ + buffer_size_] = buffer_[write_index_];
 
     if (!env_.IsRunning())
     {
@@ -31,7 +29,11 @@ float Grain::Process(const float in)
 
     // TODO Try out with formula from https://github.com/pichenettes/eurorack/blob/master/clouds/dsp/granular_processor.cc
     buffer_[write_index_] += feedbackSvf_.High() * level * feedback_;
+
+    if (write_index_ < INTERPOLATION_TAIL)
+        buffer_[write_index_ + buffer_size_] = buffer_[write_index_];
     write_index_ = (++write_index_) % buffer_size_;
+
     updateReadPosition();
 
     return out * level;
