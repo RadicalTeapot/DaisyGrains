@@ -8,9 +8,10 @@ using namespace daisy;
 
 static DaisySeed hw;
 static CpuLoadMeter meter;
-static CrossFade dryWetControl, reverbDryWet;
+static CrossFade dryWetControl, reverbDryWetControl;
 static ReverbSc reverb;
 
+const float ONE_POLE_CV_COEFF = 0.05f;              // ~ 0.5ms at 48kHz
 const int BUFFER_DURATION = 10;                     // In seconds
 const int BUFFER_SIZE = 48000 * BUFFER_DURATION;    // Assume 48kHz sample rate
 
@@ -20,6 +21,7 @@ float DSY_SDRAM_BSS grain_buffer[BUFFER_SIZE * GRAIN_COUNT];
 
 // TODO Fix grain start callback (broken atm) or remove if not easy to fix
 // TODO Test if feedback works as expected
+// TODO Add high pass filter to grain feedback
 // TODO Check why pops (seems feedback related, may also be hitting the CPU limit, check it out too)
 
 enum AdcChannels {
@@ -56,7 +58,7 @@ static void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
         reverb.Process(voicesMix[0], voicesMix[1], &reverbOut[0], &reverbOut[1]);
         for (j = 0; j < 2; j++)
         {
-            reverbMix[j] = reverbDryWet.Process(voicesMix[j], reverbOut[j]);
+            reverbMix[j] = reverbDryWetControl.Process(voicesMix[j], reverbOut[j]);
             out[i+j] = dryWetControl.Process(inValue, reverbMix[j]);
         }
     }
@@ -90,7 +92,16 @@ void AdcInit()
     hw.adc.Init(adcChannelConfig, ADC_CHANNEL_COUNT);
 }
 
-int main(void)
+void ReadAdcIn(float &dryWet, float &reverbDryWet, float &grainDensity, float &grainSize, float &feedback)
+{
+    fonepole(dryWet, hw.adc.GetFloat(AdcMixIn), ONE_POLE_CV_COEFF);
+    fonepole(reverbDryWet, hw.adc.GetFloat(AdcReverbMixIn), ONE_POLE_CV_COEFF);
+    fonepole(grainDensity, hw.adc.GetFloat(AdcGrainChanceIn), ONE_POLE_CV_COEFF);
+    fonepole(grainSize, hw.adc.GetFloat(AdcGrainSizeIn), ONE_POLE_CV_COEFF);
+    fonepole(feedback, hw.adc.GetFloat(AdcFeedbackIn), ONE_POLE_CV_COEFF);
+}
+
+void Init()
 {
     // Initialize seed hardware
     hw.Configure();
@@ -110,6 +121,7 @@ int main(void)
 
     // Configure dry/wet control
     dryWetControl.Init(CROSSFADE_CPOW);
+    reverbDryWetControl.Init(CROSSFADE_CPOW);
 
     // Configure reverb
     reverb.Init(sample_rate);
@@ -120,15 +132,16 @@ int main(void)
 
     // Start callback
     hw.StartAudio(AudioCallback);
+}
 
+void Run()
+{
+    float dryWet = 0, reverbDryWet = 0, grainDensity = 0, grainSize = 0, feedback = 0;
 	for (;;)
 	{
-        dryWetControl.SetPos(hw.adc.GetFloat(AdcMixIn));
-        reverbDryWet.SetPos(hw.adc.GetFloat(AdcReverbMixIn));
-
-        const float grainDensity = hw.adc.GetFloat(AdcGrainChanceIn);
-        const float grainSize = hw.adc.GetFloat(AdcGrainSizeIn);
-        const float feedback = hw.adc.GetFloat(AdcFeedbackIn);
+        ReadAdcIn(dryWet, reverbDryWet, grainDensity, grainSize, feedback);
+        dryWetControl.SetPos(dryWet);
+        reverbDryWetControl.SetPos(reverbDryWet);
         for (int i = 0; i < GRAIN_COUNT; i++)
         {
             grains[i].SetGrainDensity(grainDensity);
@@ -150,4 +163,10 @@ int main(void)
         // // don't spam the serial connection too much
         // System::Delay(500);
 	}
+}
+
+int main(void)
+{
+    Init();
+    Run();
 }
