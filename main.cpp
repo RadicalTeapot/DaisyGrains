@@ -11,7 +11,7 @@ static CpuLoadMeter meter;
 static CrossFade dryWetControl, reverbDryWetControl;
 static ReverbSc reverb;
 
-const float ONE_POLE_CV_COEFF = 0.05f;              // ~ 0.5ms at 48kHz
+const float ONE_POLE_CV_COEFF = 0.05f;              // time = 1 / (sample_rate * coeff) so ~0.5ms at 48kHz
 const int BUFFER_DURATION = 10;                     // In seconds
 const int BUFFER_SIZE = 48000 * BUFFER_DURATION;    // Assume 48kHz sample rate
 
@@ -70,13 +70,11 @@ void InitGrains(const float sample_rate)
 {
     const float READ_SPEEDS[GRAIN_COUNT] = {0.5f, 0.25f, 1.4983f, -1.0f, -0.5f};    // In samples
     const float MIX_VALUES[GRAIN_COUNT] = {0.25f, 0.2f, 0.1f, 0.3f, 0.15f};         // Sum to 1
-    const float GRAIN_FEEDBACK = 0.4f;
 
     for (int i = 0; i < GRAIN_COUNT; i++) {
         grains[i].Init(sample_rate, &grain_buffer[BUFFER_SIZE * i], BUFFER_SIZE);
         grains[i].SetAmp(MIX_VALUES[i] * 1.66f);
         grains[i].SetSpeed(READ_SPEEDS[i]);
-        grains[i].SetFeedback(GRAIN_FEEDBACK);
     }
 }
 

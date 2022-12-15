@@ -19,12 +19,13 @@ class Grain
         void Init(const float sample_rate, float* buffer, const size_t size)
         {
             buffer_ = buffer;
-            buffer_size_ = size;
+            buffer_size_ = size - INTERPOLATION_TAIL;
             for (size_t i = 0; i < size; i++)
                 buffer_[i] = 0;
             write_index_ = 0;
             read_position_ = 0;
 
+            feedbackSvf_.Init(sample_rate);
             env_.Init(sample_rate);
 
             audible_ = 0.0f;
@@ -50,6 +51,7 @@ class Grain
         inline void SetFeedback(const float feedback)
         {
             feedback_ = fclamp(feedback, 0.0f, 1.0f);
+            feedbackSvf_.SetFreq(20.0f + 100.0f * feedback_ * feedback_);   // Formula from https://github.com/pichenettes/eurorack/blob/master/clouds/dsp/granular_processor.cc
         }
 
         inline void Trigger()
@@ -89,9 +91,11 @@ class Grain
         float grain_density_;
         float speed_, amp_, duration_, pan_, feedback_, nextDuration_;
         float audible_;
+        Svf feedbackSvf_;
         static const float GRAIN_MIN_DURATION;
         static const float GRAIN_MAX_DURATION;
         static const float PAN_MAX_WIDTH;
+        static const int32_t INTERPOLATION_TAIL;
 
         AdEnv env_;
         grain_start_callback grain_start_callback_;

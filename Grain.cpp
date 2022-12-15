@@ -5,10 +5,13 @@ using namespace graindelay;
 const float Grain::GRAIN_MIN_DURATION = 0.1f;
 const float Grain::GRAIN_MAX_DURATION = 10.0f;
 const float Grain::PAN_MAX_WIDTH = 1.0f;
+const int32_t Grain::INTERPOLATION_TAIL = 8;
 
 float Grain::Process(const float in)
 {
     buffer_[write_index_] = in;
+    if (write_index_ < INTERPOLATION_TAIL)
+        buffer_[write_index_ + buffer_size_] = buffer_[write_index_];
 
     if (!env_.IsRunning())
     {
@@ -22,7 +25,12 @@ float Grain::Process(const float in)
     const float out = read(read_position_);
     const float level = env_.Process() * amp_ * audible_;
 
-    buffer_[write_index_] += out * level * feedback_;
+    // Apply feedback, with high-pass filtering to prevent build-ups at very
+    // low frequencies (causing large DC swings).
+    feedbackSvf_.Process(out);
+
+    // TODO Try out with formula from https://github.com/pichenettes/eurorack/blob/master/clouds/dsp/granular_processor.cc
+    buffer_[write_index_] += feedbackSvf_.High() * level * feedback_;
     write_index_ = (++write_index_) % buffer_size_;
     updateReadPosition();
 
@@ -32,9 +40,9 @@ float Grain::Process(const float in)
 void Grain::updateReadPosition()
 {
     const float updated_position = read_position_ + speed_;
-    const size_t x = static_cast<size_t>(updated_position);
-    const float f = updated_position - static_cast<float>(x);
-    read_position_ = (x % buffer_size_) + f;
+    if (updated_position < 0) read_position_ = updated_position + buffer_size_;
+    else if (updated_position >= buffer_size_) read_position_ = updated_position - buffer_size_;
+    else read_position_ = updated_position;
 }
 
 float Grain::read(size_t position)
