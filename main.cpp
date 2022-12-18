@@ -21,7 +21,6 @@ float DSY_SDRAM_BSS grain_buffer[BUFFER_SIZE * GRAIN_COUNT];
 
 // TODO Fix grain start callback (broken atm) or remove if not easy to fix
 // TODO Test if feedback works as expected
-// TODO Check why pops (seems feedback related, may also be hitting the CPU limit, check it out too)
 
 enum AdcChannels {
     AdcMixIn = 0,       // Pin A0

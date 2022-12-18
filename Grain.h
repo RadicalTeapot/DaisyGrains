@@ -9,39 +9,37 @@ using namespace daisysp;
 
 namespace graindelay
 {
-    typedef void (*grain_start_callback)(bool);
+    typedef void (*Grain_start_callback)(bool);
 class Grain
 {
     public:
         Grain() {}
         ~Grain() {}
 
-        void Init(const float sample_rate, float* buffer, const size_t size)
+        void Init(const float sampleRate, float* buffer, const size_t bufferSize)
         {
+            sampleRate_ = sampleRate;
             buffer_ = buffer;
-            buffer_size_ = size - INTERPOLATION_TAIL;
-            for (size_t i = 0; i < size; i++)
+            bufferSize_ = bufferSize - kInterpolationTail;
+            for (size_t i = 0; i < bufferSize; i++)
                 buffer_[i] = 0;
-            write_index_ = 0;
-            read_position_ = 0;
+            writeIndex_ = 0;
+            readPosition_ = 0;
 
-            feedbackSvf_.Init(sample_rate);
-            env_.Init(sample_rate);
+            feedbackSvf_.Init(sampleRate);
+            env_.Init(sampleRate);
 
             audible_ = 0.0f;
             speed_ = 1.0f;
             amp_ = 0.0f;
-            grain_density_ = 0.0f;
+            grainDensity_ = 0.0f;
             feedback_ = 0.0f;
 
-            grain_start_callback empty_callback {};
-            grain_start_callback_ = empty_callback;
+            Grain_start_callback emptyCallback {};
+            grainStartCallback_ = emptyCallback;
         }
 
-        inline void SetSpeed(const float speed)
-        {
-            speed_ = speed;
-        }
+        void SetSpeed(const float speed);
 
         void SetAmp(const float amp)
         {
@@ -56,6 +54,7 @@ class Grain
 
         inline void Trigger()
         {
+            readPosition_ = speed_ > sampleRate_ ? ((writeIndex_ - grainSize_) + bufferSize_) % bufferSize_ : writeIndex_;
             env_.Trigger();
         }
 
@@ -64,14 +63,14 @@ class Grain
             nextDuration_ = length;
         }
 
-        inline void SetGrainStartCallback(grain_start_callback grain_start_callback)
+        inline void SetGrainStartCallback(Grain_start_callback grainStartCallback)
         {
-            grain_start_callback_ = grain_start_callback;
+            grainStartCallback_ = grainStartCallback;
         }
 
-        inline void SetGrainDensity(const float grain_density)
+        inline void SetGrainDensity(const float grainDensity)
         {
-            grain_density_ = fclamp(grain_density, 0.0f, 1.0f);
+            grainDensity_ = fclamp(grainDensity, 0.0f, 1.0f);
         }
 
         inline float GetPan() {return pan_;}
@@ -79,42 +78,48 @@ class Grain
         float Process(const float in);
 
     private:
-        float read(size_t position);
-        float read(float position);
-        float readHermite(float position);
-        void updateReadPosition();
-
         float* buffer_;
-        size_t buffer_size_;
-        uint32_t write_index_;
-        float read_position_;
-        float grain_density_;
-        float speed_, amp_, duration_, pan_, feedback_, nextDuration_;
-        float audible_;
-        Svf feedbackSvf_;
-        static const float GRAIN_MIN_DURATION;
-        static const float GRAIN_MAX_DURATION;
-        static const float PAN_MAX_WIDTH;
-        static const int32_t INTERPOLATION_TAIL;
+
+        size_t  bufferSize_,
+                writeIndex_,
+                grainMaxDuration_,
+                grainSize_;
+
+        float   amp_,
+                pan_,
+                feedback_,
+                nextDuration_,
+                grainDensity_,
+                sampleRate_,
+                speed_,
+                readPosition_,
+                audible_;
 
         AdEnv env_;
-        grain_start_callback grain_start_callback_;
+        Svf feedbackSvf_;
+        Grain_start_callback grainStartCallback_;
 
-        void UpdateEnvFromDuration();
+        static const size_t kGrainMinDuration;
+        static const float kPanMaxWidth;
+        static const size_t kInterpolationTail;
+        static const float kSizeVariationAmount;
 
-        inline void UpdateDuration()
+        inline void updateReadPosition()
         {
-            const float dialedDuration = fmap(nextDuration_, GRAIN_MIN_DURATION, GRAIN_MAX_DURATION);
-            // Add +-5% variation to dialed in value
-            const float variation = fmap(rand() * kRandFrac, dialedDuration * -1, dialedDuration) * 0.05f;
-            duration_ = fclamp(dialedDuration + variation, GRAIN_MIN_DURATION, GRAIN_MAX_DURATION);
-            UpdateEnvFromDuration();
+            readPosition_ += speed_;
+            if (readPosition_ < 0) readPosition_ += bufferSize_;
+            else if (readPosition_ > bufferSize_) readPosition_ -= bufferSize_;
         }
 
         inline void UpdatePan()
         {
-            pan_ = fmap(rand() * kRandFrac, -1 * PAN_MAX_WIDTH, PAN_MAX_WIDTH);
+            pan_ = fmap(rand() * kRandFrac, -1 * kPanMaxWidth, kPanMaxWidth);
         }
+
+        float read(size_t position);
+        float read(float position);
+        float readHermite(float position);
+        void updateGrainSize();
 };
 }
 
