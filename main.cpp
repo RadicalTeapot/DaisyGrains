@@ -13,13 +13,13 @@ static CpuLoadMeter meter;
 static CrossFade dryWetControl, reverbDryWetControl;
 static ReverbSc reverb;
 
-const float ONE_POLE_CV_COEFF = 0.05f;              // time = 1 / (sample_rate * coeff) so ~0.5ms at 48kHz
-const int BUFFER_DURATION = 10;                     // In seconds
-const int BUFFER_SIZE = 48000 * BUFFER_DURATION;    // Assume 48kHz sample rate
+const float kOnePoleCvCoeff = 0.05f;                // time = 1 / (sampleRate * coeff) so ~0.5ms at 48kHz
+const int kBufferDuration = 10;                     // In seconds
+const int kBufferSize = 48000 * kBufferDuration;    // Assume 48kHz sample rate
 
-const int GRAIN_COUNT = 5;
-static graindelay::Grain grains[GRAIN_COUNT];
-float DSY_SDRAM_BSS grain_buffer[BUFFER_SIZE * GRAIN_COUNT];
+const int kGrainCount = 5;
+static graindelay::Grain grains[kGrainCount];
+float DSY_SDRAM_BSS grainBuffer[kBufferSize * kGrainCount];
 
 // TODO Test if feedback works as expected
 
@@ -48,7 +48,7 @@ static void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
 
         voicesMix[0] = 0;
         voicesMix[1] = 0;
-        for (j = 0; j < GRAIN_COUNT; j++)
+        for (j = 0; j < kGrainCount; j++)
         {
             grainProcess = grains[j].Process(inValue);
             voicesMix[0] += grainProcess * (grains[j].GetPan() * -0.5 + 0.5);
@@ -69,15 +69,15 @@ static void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
 #endif
 }
 
-void InitGrains(const float sample_rate)
+void InitGrains(const float sampleRate)
 {
-    const float READ_SPEEDS[GRAIN_COUNT] = {0.5f, 0.25f, 1.4983f, -1.0f, -0.5f};    // In samples
-    const float MIX_VALUES[GRAIN_COUNT] = {0.25f, 0.2f, 0.1f, 0.3f, 0.15f};         // Sum to 1
+    const float readSpeeds[kGrainCount] = {0.5f, 0.25f, 1.4983f, -1.0f, -0.5f};    // In samples
+    const float mixValues[kGrainCount] = {0.25f, 0.2f, 0.1f, 0.3f, 0.15f};         // Sum to 1
 
-    for (int i = 0; i < GRAIN_COUNT; i++) {
-        grains[i].Init(sample_rate, &grain_buffer[BUFFER_SIZE * i], BUFFER_SIZE);
-        grains[i].SetAmp(MIX_VALUES[i] * 1.66f);
-        grains[i].SetSpeed(READ_SPEEDS[i]);
+    for (int i = 0; i < kGrainCount; i++) {
+        grains[i].Init(sampleRate, &grainBuffer[kBufferSize * i], kBufferSize);
+        grains[i].SetAmp(mixValues[i] * 1.66f);
+        grains[i].SetSpeed(readSpeeds[i]);
     }
 }
 
@@ -95,11 +95,11 @@ void AdcInit()
 
 void ReadAdcIn(float &dryWet, float &reverbDryWet, float &grainDensity, float &grainSize, float &feedback)
 {
-    fonepole(dryWet, hw.adc.GetFloat(AdcMixIn), ONE_POLE_CV_COEFF);
-    fonepole(reverbDryWet, hw.adc.GetFloat(AdcReverbMixIn), ONE_POLE_CV_COEFF);
-    fonepole(grainDensity, hw.adc.GetFloat(AdcGrainChanceIn), ONE_POLE_CV_COEFF);
-    fonepole(grainSize, hw.adc.GetFloat(AdcGrainSizeIn), ONE_POLE_CV_COEFF);
-    fonepole(feedback, hw.adc.GetFloat(AdcFeedbackIn), ONE_POLE_CV_COEFF);
+    fonepole(dryWet, hw.adc.GetFloat(AdcMixIn), kOnePoleCvCoeff);
+    fonepole(reverbDryWet, hw.adc.GetFloat(AdcReverbMixIn), kOnePoleCvCoeff);
+    fonepole(grainDensity, hw.adc.GetFloat(AdcGrainChanceIn), kOnePoleCvCoeff);
+    fonepole(grainSize, hw.adc.GetFloat(AdcGrainSizeIn), kOnePoleCvCoeff);
+    fonepole(feedback, hw.adc.GetFloat(AdcFeedbackIn), kOnePoleCvCoeff);
 }
 
 void Init()
@@ -113,12 +113,12 @@ void Init()
     AdcInit();
 
     // Configure LFOs and envelopes
-    float sample_rate = hw.AudioSampleRate();
-    InitGrains(sample_rate);
+    float sampleRate = hw.AudioSampleRate();
+    InitGrains(sampleRate);
 
 #ifdef DEBUG
     // initialize the load meter so that it knows what time is available for the processing
-    meter.Init(sample_rate, hw.AudioBlockSize());
+    meter.Init(sampleRate, hw.AudioBlockSize());
 
     hw.StartLog();
 #endif
@@ -128,7 +128,7 @@ void Init()
     reverbDryWetControl.Init(CROSSFADE_CPOW);
 
     // Configure reverb
-    reverb.Init(sample_rate);
+    reverb.Init(sampleRate);
     reverb.SetFeedback(0.9);
 
     // Start ADC
@@ -155,7 +155,7 @@ void Run()
             ReadAdcIn(dryWet, reverbDryWet, grainDensity, grainSize, feedback);
             dryWetControl.SetPos(dryWet);
             reverbDryWetControl.SetPos(reverbDryWet);
-            for (int i = 0; i < GRAIN_COUNT; i++)
+            for (int i = 0; i < kGrainCount; i++)
             {
                 grains[i].SetGrainDensity(grainDensity);
                 grains[i].SetDuration(grainSize);
