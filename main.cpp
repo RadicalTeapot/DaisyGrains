@@ -7,7 +7,9 @@ using namespace daisysp;
 using namespace daisy;
 
 static DaisySeed hw;
+#ifdef DEBUG
 static CpuLoadMeter meter;
+#endif
 static CrossFade dryWetControl, reverbDryWetControl;
 static ReverbSc reverb;
 
@@ -34,7 +36,9 @@ static void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
                           AudioHandle::InterleavingOutputBuffer out,
                           size_t                                size)
 {
-    // meter.OnBlockStart();
+#ifdef DEBUG
+    meter.OnBlockStart();
+#endif
 
     float voicesMix[2], grainProcess, inValue, reverbOut[2], reverbMix[2], outValue;
     int j;
@@ -60,7 +64,9 @@ static void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
         }
     }
 
-    // meter.OnBlockEnd();
+#ifdef DEBUG
+    meter.OnBlockEnd();
+#endif
 }
 
 void InitGrains(const float sample_rate)
@@ -104,15 +110,18 @@ void Init()
     hw.SetAudioBlockSize(256);
     hw.SetAudioSampleRate(SaiHandle::Config::SampleRate::SAI_48KHZ);
 
-    // initialize the load meter so that it knows what time is available for the processing:
-    // meter.Init(sample_rate, hw.AudioBlockSize());
-    hw.StartLog();
-
     AdcInit();
 
     // Configure LFOs and envelopes
     float sample_rate = hw.AudioSampleRate();
     InitGrains(sample_rate);
+
+#ifdef DEBUG
+    // initialize the load meter so that it knows what time is available for the processing
+    meter.Init(sample_rate, hw.AudioBlockSize());
+
+    hw.StartLog();
+#endif
 
     // Configure dry/wet control
     dryWetControl.Init(CROSSFADE_CPOW);
@@ -129,33 +138,50 @@ void Init()
     hw.StartAudio(AudioCallback);
 }
 
+const int kLoopDelayLength = 25; // In ms
+const int kAdcReadInterval = 25; // In ms
+const int kCPUReportInterval = 500; // In ms
 void Run()
 {
     float dryWet = 0, reverbDryWet = 0, grainDensity = 0, grainSize = 0, feedback = 0;
+    int timeUntilNextAdcRead = 0, timeUntilNextCPUReport = 0;
 	for (;;)
 	{
-        ReadAdcIn(dryWet, reverbDryWet, grainDensity, grainSize, feedback);
-        dryWetControl.SetPos(dryWet);
-        reverbDryWetControl.SetPos(reverbDryWet);
-        for (int i = 0; i < GRAIN_COUNT; i++)
+        if (timeUntilNextAdcRead <= 0)
         {
-            grains[i].SetGrainDensity(grainDensity);
-            grains[i].SetDuration(grainSize);
-            grains[i].SetFeedback(feedback);
+            ReadAdcIn(dryWet, reverbDryWet, grainDensity, grainSize, feedback);
+            dryWetControl.SetPos(dryWet);
+            reverbDryWetControl.SetPos(reverbDryWet);
+            for (int i = 0; i < GRAIN_COUNT; i++)
+            {
+                grains[i].SetGrainDensity(grainDensity);
+                grains[i].SetDuration(grainSize);
+                grains[i].SetFeedback(feedback);
+            }
+            timeUntilNextAdcRead = kAdcReadInterval;
         }
+        timeUntilNextAdcRead -= kLoopDelayLength;
 
-        System::Delay(25);
+#ifdef DEBUG
+        if (timeUntilNextCPUReport <= 0)
+        {
+            // get the current load (smoothed value and peak values)
+            const float avgLoad = meter.GetAvgCpuLoad();
+            const float maxLoad = meter.GetMaxCpuLoad();
+            const float minLoad = meter.GetMinCpuLoad();
+            // print it to the serial connection (as percentages)
+            hw.PrintLine("Processing Load %:");
+            hw.PrintLine("Max: " FLT_FMT3, FLT_VAR3(maxLoad * 100.0f));
+            hw.PrintLine("Avg: " FLT_FMT3, FLT_VAR3(avgLoad * 100.0f));
+            hw.PrintLine("Min: " FLT_FMT3, FLT_VAR3(minLoad * 100.0f));
 
-        // // get the current load (smoothed value and peak values)
-        // const float avgLoad = meter.GetAvgCpuLoad();
-        // const float maxLoad = meter.GetMaxCpuLoad();
-        // const float minLoad = meter.GetMinCpuLoad();
-        // // print it to the serial connection (as percentages)
-        // hw.PrintLine("Processing Load %:");
-        // hw.PrintLine("Max: " FLT_FMT3, FLT_VAR3(maxLoad * 100.0f));
-        // hw.PrintLine("Avg: " FLT_FMT3, FLT_VAR3(avgLoad * 100.0f));
-        // hw.PrintLine("Min: " FLT_FMT3, FLT_VAR3(minLoad * 100.0f));
-        // // don't spam the serial connection too much
+            timeUntilNextCPUReport = kCPUReportInterval;
+        }
+        timeUntilNextCPUReport -= kLoopDelayLength;
+#endif
+
+        System::Delay(kLoopDelayLength);
+
         // System::Delay(500);
 	}
 }

@@ -19,7 +19,7 @@ float Grain::Process(const float in)
         Trigger();
     }
 
-    const float out = read(readPosition_);
+    const float out = readHermite(readPosition_);
     const float level = env_.Process() * amp_ * audible_;
 
     // Apply feedback, with high-pass filtering to prevent build-ups at very
