@@ -14,7 +14,6 @@ float Grain::Process(const float in)
     if (!env_.IsRunning())
     {
         audible_ = (rand() * kRandFrac) >= grainDensity_ ? 0.0f : 1.0f;
-        // grainStartCallback_(audible_ > 0.0f);
         updateGrainSize();
         UpdatePan();
         Trigger();

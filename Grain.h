@@ -9,7 +9,6 @@ using namespace daisysp;
 
 namespace graindelay
 {
-    typedef void (*Grain_start_callback)(bool);
 class Grain
 {
     public:
@@ -34,9 +33,6 @@ class Grain
             amp_ = 0.0f;
             grainDensity_ = 0.0f;
             feedback_ = 0.0f;
-
-            Grain_start_callback emptyCallback {};
-            grainStartCallback_ = emptyCallback;
         }
 
         void SetSpeed(const float speed);
@@ -61,11 +57,6 @@ class Grain
         inline void SetDuration(const float length)
         {
             nextDuration_ = length;
-        }
-
-        inline void SetGrainStartCallback(Grain_start_callback grainStartCallback)
-        {
-            grainStartCallback_ = grainStartCallback;
         }
 
         inline void SetGrainDensity(const float grainDensity)
@@ -97,7 +88,6 @@ class Grain
 
         AdEnv env_;
         Svf feedbackSvf_;
-        Grain_start_callback grainStartCallback_;
 
         static const size_t kGrainMinDuration;
         static const float kPanMaxWidth;
@@ -106,6 +96,9 @@ class Grain
 
         inline void updateReadPosition()
         {
+            // TODO (Later optimization) readPosition could be split in two size_t vars
+            // one to track the integral value of the other one to track the fractional value * 65536 (similar to what
+            // is in clouds code)
             readPosition_ += speed_;
             if (readPosition_ < 0) readPosition_ += bufferSize_;
             else if (readPosition_ > bufferSize_) readPosition_ -= bufferSize_;

@@ -19,7 +19,6 @@ const int GRAIN_COUNT = 5;
 static graindelay::Grain grains[GRAIN_COUNT];
 float DSY_SDRAM_BSS grain_buffer[BUFFER_SIZE * GRAIN_COUNT];
 
-// TODO Fix grain start callback (broken atm) or remove if not easy to fix
 // TODO Test if feedback works as expected
 
 enum AdcChannels {
