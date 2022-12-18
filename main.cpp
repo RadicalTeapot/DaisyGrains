@@ -40,7 +40,7 @@ static void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
     meter.OnBlockStart();
 #endif
 
-    float voicesMix[2], grainProcess, inValue, reverbOut[2], reverbMix[2], outValue;
+    float voicesMix[2], grainProcess, inValue, reverbOut[2], reverbMix[2];
     int j;
     for(size_t i = 0; i < size; i += 2)
     {
@@ -144,7 +144,10 @@ const int kCPUReportInterval = 500; // In ms
 void Run()
 {
     float dryWet = 0, reverbDryWet = 0, grainDensity = 0, grainSize = 0, feedback = 0;
-    int timeUntilNextAdcRead = 0, timeUntilNextCPUReport = 0;
+    int timeUntilNextAdcRead = 0;
+#ifdef DEBUG
+    int timeUntilNextCPUReport = 0;
+#endif
 	for (;;)
 	{
         if (timeUntilNextAdcRead <= 0)
