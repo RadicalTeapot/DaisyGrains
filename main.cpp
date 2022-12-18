@@ -184,8 +184,6 @@ void Run()
 #endif
 
         System::Delay(kLoopDelayLength);
-
-        // System::Delay(500);
 	}
 }
 
