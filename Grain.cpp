@@ -47,13 +47,13 @@ void Grain::SetSpeed(const float speed)
     grainMaxDuration_ = static_cast<size_t>(sizeRatio * bufferSize_);
 }
 
-float Grain::read(size_t position)
+inline float Grain::read(size_t position)
 {
     return buffer_[position % bufferSize_];
 }
 
 // Linear interpolation
-float Grain::read(float position)
+inline float Grain::read(float position)
 {
     const int32_t t = static_cast<int32_t>(position);
     const float f = position - static_cast<float>(t);
@@ -65,7 +65,7 @@ float Grain::read(float position)
 }
 
 // Hermite interpolation (from here https://github.com/pichenettes/stmlib/blob/master/dsp/dsp.h)
-float Grain::readHermite(float position)
+inline float Grain::readHermite(float position)
 {
     const int32_t t = static_cast<int32_t>(position);
     const float f = position - static_cast<float>(t);
