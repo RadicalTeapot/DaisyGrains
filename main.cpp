@@ -13,9 +13,12 @@ static CpuLoadMeter meter;
 static CrossFade dryWetControl, reverbDryWetControl;
 static ReverbSc reverb;
 
-const float kOnePoleCvCoeff = 0.05f;                // time = 1 / (sampleRate * coeff) so ~0.5ms at 48kHz
-const int kBufferDuration = 10;                     // In seconds
-const int kBufferSize = 48000 * kBufferDuration;    // Assume 48kHz sample rate
+const int   kLoopDelayLength    = 25;                       // In ms
+const int   kAdcReadInterval    = 25;                       // In ms
+const int   kCPUReportInterval  = 500;                      // In ms
+const float kOnePoleCvCoeff     = 0.5f;                     // time = 1 / (sampleRate * coeff) so ~0.05s at 40Hz (1/kDelayLoopLength)
+const int   kBufferDuration     = 10;                       // In seconds
+const int   kBufferSize         = 48000 * kBufferDuration;  // Assume 48kHz sample rate
 
 const int kGrainCount = 5;
 static graindelay::Grain grains[kGrainCount];
@@ -138,9 +141,6 @@ void Init()
     hw.StartAudio(AudioCallback);
 }
 
-const int kLoopDelayLength = 25; // In ms
-const int kAdcReadInterval = 25; // In ms
-const int kCPUReportInterval = 500; // In ms
 void Run()
 {
     float dryWet = 0, reverbDryWet = 0, grainDensity = 0, grainSize = 0, feedback = 0;
