@@ -26,12 +26,13 @@ float DSY_SDRAM_BSS grainBuffer[kBufferSize * kGrainCount];
 
 // TODO Test if feedback works as expected
 
+// Use only 5v tolerant I/O pins (see datasheet)
 enum AdcChannels {
     AdcMixIn = 0,       // Pin A0
     AdcGrainChanceIn,   // Pin A1
-    AdcGrainSizeIn,     // Pin A2
-    AdcReverbMixIn,     // Pin A3
-    AdcFeedbackIn,      // Pin A4
+    AdcGrainSizeIn,     // Pin A4
+    AdcReverbMixIn,     // Pin A5
+    AdcFeedbackIn,      // Pin A9
     ADC_CHANNEL_COUNT,
 };
 
@@ -90,9 +91,9 @@ void AdcInit()
     AdcChannelConfig adcChannelConfig[ADC_CHANNEL_COUNT];
     adcChannelConfig[AdcMixIn].InitSingle(daisy::seed::A0);
     adcChannelConfig[AdcGrainChanceIn].InitSingle(daisy::seed::A1);
-    adcChannelConfig[AdcGrainSizeIn].InitSingle(daisy::seed::A2);
-    adcChannelConfig[AdcReverbMixIn].InitSingle(daisy::seed::A3);
-    adcChannelConfig[AdcFeedbackIn].InitSingle(daisy::seed::A4);
+    adcChannelConfig[AdcGrainSizeIn].InitSingle(daisy::seed::A4);
+    adcChannelConfig[AdcReverbMixIn].InitSingle(daisy::seed::A5);
+    adcChannelConfig[AdcFeedbackIn].InitSingle(daisy::seed::A9);
     hw.adc.Init(adcChannelConfig, ADC_CHANNEL_COUNT);
 }
 
